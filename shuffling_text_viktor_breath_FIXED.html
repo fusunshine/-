@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Инсталляция: текст и дыхание</title>
+<style>
+  body{font-family:Inter,system-ui,Arial;background:#0f0f12;color:#eef2f5;
+       display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;}
+  .card{width:100%;max-width:980px;padding:24px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));
+        border:1px solid rgba(255,255,255,0.04);box-shadow:0 10px 30px rgba(2,6,23,0.6);}
+  h1{margin:0 0 8px 0;font-size:20px;color:#fff;}
+  p.lead{margin:0 0 18px 0;color:#b7c2c8;font-size:14px;}
+  .para{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;margin-bottom:12px;min-height:56px;overflow:hidden;}
+  .line{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .word{display:inline-block;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.01);
+        transition:transform 360ms cubic-bezier(.2,.9,.3,1),opacity 360ms,filter 360ms;user-select:none;color:#e9f0f5;}
+  .dim{opacity:0.18;filter:blur(.6px);}
+  .controls{display:flex;gap:8px;margin-top:8px;align-items:center;}
+  button{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#cfe7ff;padding:8px 12px;border-radius:8px;cursor:pointer;}
+  .mute{margin-left:auto;display:flex;gap:8px;align-items:center;}
+  .note{margin-top:10px;color:#98a4ac;font-size:13px;}
+  @media (max-width:600px){.card{padding:14px}.word{padding:4px 6px;font-size:15px}}
+</style>
+</head>
+<body>
+<div aria-live="polite" class="card" role="main">
+<h1>Инсталляция — текст и дыхание</h1>
+<p class="lead">Текст постоянно перемешивается. В фоне — лёгкое дыхание (синтетическое) в петле. Нажмите "Mute", если нужно.</p>
+<div class="para"><div class="line" id="p1"></div></div>
+<div class="para"><div class="line" id="p2"></div></div>
+<div class="para"><div class="line" id="p3"></div></div>
+<div class="controls">
+<button id="pause">Пауза</button>
+<button id="reset">Сбросить</button>
+<button id="speed">Скорость ×1</button>
+<div class="mute">
+<button id="muteBtn">Mute</button>
+<span style="color:#8fa7b8;font-size:13px;">Звук: <span id="volLabel">on</span></span>
+</div>
+</div>
+<div class="note">Подойдите ближе к экрану — дыхание станет ощутимее. Нажмите на экран, если звук не запустился (браузер блокирует автоплей).</div>
+</div>
+<script>// Texts
+const texts = [
+"Механика обнуления — это исходная точка проекта «Глобальная Адаптация», где человек впервые вступает в поле системной редукции. Этот блок фиксирует моменты, когда индивидуальное «я» впервые попадает под давление глобального алгоритма и начинает свой переход в состояние функциональной единицы.",
+"Блок демонстрирует не простую адаптацию, а процедуру нивелировки субъекта, в которой личность утрачивает собственную семантику и включается в режим программируемой реакции. \nНастоящий визуальный ряд превращается в системный протокол того, как человеческое сознание постепенно переводится из режима автономии в режим операционной совместимости с внешней матрицей.",
+"Художник трактует этот процесс как критическую фазу антропологической трансформации: момент, когда человек ещё способный осознавать навязываемую модель, сам же начинает её питать за счёт утраты своего  позиьивного ресурса. \n«Механика обнуления» предупреждает о судьбе, ожидающей субъекта, который беспрепятственно принимает правила глобализации, — о переходе от носителя индивидуального опыта к элементу универсального, обезличенного порядка..."
+];
+
+
+
+// render spans
+function setup(){
+  ['p1','p2','p3'].forEach((id, idx)=>{
+    const cont = document.getElementById(id);
+    cont.innerHTML='';
+    const words = texts[idx].split(/\s+/).filter(Boolean);
+    words.forEach((w,i)=>{
+      const sp = document.createElement('span');
+      sp.className='word';
+      sp.textContent = w;
+      cont.appendChild(sp);
+    });
+  });
+}
+setup();
+
+// shuffle logic: allow any word including first
+function shuffleOnce(){
+  document.querySelectorAll('.line').forEach(line=>{
+    const spans = Array.from(line.children);
+    if(spans.length < 2) return;
+    // perform a few random swaps
+    const swaps = Math.max(1, Math.floor(spans.length * 0.06));
+    for(let s=0;s<swaps;s++){
+      const i = Math.floor(Math.random()*spans.length);
+      const j = Math.floor(Math.random()*spans.length);
+      if(i===j) continue;
+      const a = spans[i], b = spans[j];
+      a.style.transform = 'scale(1.08) translateY(-6px)';
+      b.style.transform = 'scale(1.08) translateY(-6px)';
+      setTimeout(()=>{
+        a.parentNode.insertBefore(b, a);
+        a.style.transform=''; b.style.transform='';
+      }, 220);
+    }
+    spans.forEach(sp=>{
+      if(Math.random() < 0.07) sp.classList.toggle('dim'); else sp.classList.remove('dim');
+    });
+  });
+}
+
+let interval = null;
+let paused = false;
+let speedMultiplier = 1;
+let baseMs = 1000;
+
+function startShuffle(){
+  if(interval) clearInterval(interval);
+  interval = setInterval(()=>{ if(!paused) shuffleOnce(); }, Math.max(120, baseMs / speedMultiplier));
+}
+startShuffle();
+
+// controls
+document.getElementById('pause').onclick = ()=>{ paused = !paused; document.getElementById('pause').textContent = paused? 'Возобновить':'Пауза'; };
+document.getElementById('reset').onclick = ()=>{ setup(); };
+document.getElementById('speed').onclick = ()=>{
+  speedMultiplier = speedMultiplier === 1 ? 1.8 : speedMultiplier === 1.8 ? 3 : 1;
+  document.getElementById('speed').textContent = 'Скорость ×' + speedMultiplier;
+  startShuffle();
+};
+
+// Audio: synthesize breathing using WebAudio API (noise + lowpass + gain envelope)
+let audioCtx = null;
+let masterGain = null;
+let breathing = { running:false, mute:false, timeout:null };
+
+function initAudio(){
+  if(audioCtx) return;
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }catch(e){
+    console.warn('AudioContext not available', e);
+    return;
+  }
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.28; // overall volume (not loud)
+  masterGain.connect(audioCtx.destination);
+  // start loop
+  breathing.running = true;
+  scheduleNextBreath(0.2);
+}
+
+function makeBreath(duration, intensity){
+  // create white noise buffer
+  const bufferSize = Math.floor(audioCtx.sampleRate * Math.max(0.5, duration));
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<bufferSize;i++){
+    data[i] = (Math.random()*2 - 1) * 0.6;
+  }
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  src.loop = false;
+  const lp = audioCtx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 1400 - Math.random()*500;
+  const g = audioCtx.createGain();
+  g.gain.value = 0.0001;
+  src.connect(lp); lp.connect(g); g.connect(masterGain);
+  const now = audioCtx.currentTime;
+  const inhale = duration * 0.42;
+  const exhale = duration * 0.58;
+  g.gain.cancelScheduledValues(now);
+  g.gain.setValueAtTime(0.001, now);
+  g.gain.linearRampToValueAtTime(0.28 * intensity, now + inhale);
+  g.gain.linearRampToValueAtTime(0.06 * intensity, now + inhale + exhale * 0.55);
+  g.gain.linearRampToValueAtTime(0.0001, now + duration + 0.05);
+  src.start(now);
+  src.stop(now + duration + 0.12);
+}
+
+function scheduleNextBreath(){
+  if(!breathing.running) return;
+  const dur = 1.2 + Math.random()*0.9;
+  const intensity = 0.65 + Math.random()*0.5;
+  makeBreath(dur, intensity);
+  const pause = 0.25 + Math.random()*1.25;
+  breathing.timeout = setTimeout(()=> scheduleNextBreath(), (dur + pause)*1000);
+}
+
+// Mute button / autoplay handling
+const muteBtn = document.getElementById('muteBtn');
+const volLabel = document.getElementById('volLabel');
+muteBtn.onclick = ()=>{
+  if(!audioCtx) { initAudio(); }
+  if(!masterGain) return;
+  breathing.mute = !breathing.mute;
+  masterGain.gain.value = breathing.mute ? 0 : 0.28;
+  volLabel.textContent = breathing.mute ? 'off' : 'on';
+  muteBtn.textContent = breathing.mute ? 'Unmute' : 'Mute';
+};
+
+// Try to init audio on user gesture; many browsers block autoplay otherwise
+function userInit(){
+  if(!audioCtx) initAudio();
+  if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  window.removeEventListener('click', userInit);
+  window.removeEventListener('touchstart', userInit);
+}
+window.addEventListener('click', userInit, { once:false });
+window.addEventListener('touchstart', userInit, { once:false });
+
+// Attempt to auto-init (may be blocked until user interacts)
+setTimeout(()=>{ try{ initAudio(); }catch(e){} }, 600);
+
+</script>
+</body>
+</html>
